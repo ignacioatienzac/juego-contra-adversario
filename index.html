@@ -4,761 +4,91 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ArrowWord vs AI</title>
-    <!-- Tailwind CSS para estructura rápida -->
+    <!-- Librerías externas (Tailwind y FontAwesome) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome para iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- ESTILO CSS PERSONALIZADO -->
-    <style>
-        :root {
-            --grid-cols: 8;
-            --grid-rows: 10;
-            --cell-size: clamp(35px, 9vw, 55px);
-            --clue-bg: #e0f2fe; /* Azul muy suave */
-            --clue-text: #0ea5e9;
-            --border-color: #334155;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f8fafc;
-            touch-action: manipulation; /* Mejor respuesta táctil */
-        }
-
-        /* TABLERO */
-        .game-board {
-            display: grid;
-            grid-template-columns: repeat(var(--grid-cols), var(--cell-size));
-            grid-template-rows: repeat(var(--grid-rows), var(--cell-size));
-            gap: 1px;
-            background-color: var(--border-color);
-            border: 2px solid var(--border-color);
-            margin: 0 auto;
-            user-select: none;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
-
-        .cell {
-            background-color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 1.2rem;
-            font-weight: bold;
-            position: relative;
-            text-transform: uppercase;
-        }
-
-        /* CELDAS DE PISTA */
-        .cell.clue-cell {
-            background-color: var(--clue-bg);
-            color: #1e293b;
-            font-size: 0.65rem;
-            font-weight: normal;
-            padding: 2px;
-            text-align: center;
-            flex-direction: column;
-            line-height: 1.1;
-            z-index: 10;
-        }
-
-        /* Flechas indicadoras en las pistas */
-        .arrow-right::after {
-            content: '⮕';
-            display: block;
-            color: var(--clue-text);
-            font-size: 0.8rem;
-            margin-top: 1px;
-        }
-        .arrow-down::after {
-            content: '⬇';
-            display: block;
-            color: var(--clue-text);
-            font-size: 0.8rem;
-            margin-top: 1px;
-        }
-
-        /* CELDAS DE JUEGO */
-        .cell.game-cell {
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .cell.game-cell.filled-ai {
-            color: #ef4444; /* Color rojo para la IA */
-            background-color: #fef2f2;
-        }
-
-        .cell.game-cell.filled-player {
-            color: #2563eb; /* Color azul para el Jugador */
-            background-color: #eff6ff;
-        }
-        
-        .cell.game-cell.correct-flash {
-            animation: flashGreen 0.5s ease-out;
-        }
-
-        .cell.game-cell.error-shake {
-            animation: shake 0.4s ease-in-out;
-            background-color: #fee2e2;
-        }
-
-        /* BANCO DE LETRAS DEL JUGADOR */
-        .rack-container {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            padding: 15px;
-            min-height: 80px;
-        }
-
-        .tile {
-            width: 50px;
-            height: 50px;
-            background-color: #ffffff;
-            border: 2px solid #cbd5e1;
-            border-bottom: 4px solid #94a3b8;
-            border-radius: 8px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #1e293b;
-            cursor: grab;
-            touch-action: none; /* Importante para drag en móvil */
-            user-select: none;
-            transition: transform 0.1s;
-        }
-
-        .tile:active {
-            cursor: grabbing;
-            transform: scale(1.1);
-        }
-
-        .tile.dragging {
-            opacity: 0.5;
-        }
-
-        /* UI GENERICA */
-        .score-box {
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .score-change {
-            position: absolute;
-            font-weight: bold;
-            font-size: 1.2rem;
-            animation: floatUp 1s forwards;
-            pointer-events: none;
-        }
-
-        @keyframes floatUp {
-            0% { transform: translateY(0); opacity: 1; }
-            100% { transform: translateY(-20px); opacity: 0; }
-        }
-
-        @keyframes flashGreen {
-            0% { background-color: #86efac; }
-            100% { background-color: #eff6ff; }
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-        }
-
-        /* Modal Overlay */
-        .modal-overlay {
-            background-color: rgba(0,0,0,0.5);
-            backdrop-filter: blur(2px);
-        }
-    </style>
+    <!-- Tu hoja de estilos -->
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="h-screen flex flex-col overflow-hidden">
+<body>
 
-    <!-- HEADER: PUNTUACIÓN Y TURNO -->
-    <header class="bg-white shadow-sm p-4 z-20">
-        <div class="max-w-2xl mx-auto flex justify-between items-center">
-            
-            <!-- Jugador -->
-            <div class="flex flex-col items-center score-box" id="player-score-box">
-                <span class="text-xs text-gray-500 uppercase font-bold tracking-wider">Tú</span>
-                <div class="text-3xl font-black text-blue-600" id="score-player">0</div>
+    <div id="game-container">
+        <!-- HEADER -->
+        <header class="flex justify-between items-center">
+            <!-- Puntuación Jugador -->
+            <div class="flex flex-col items-center w-16" id="player-score-box">
+                <span class="text-[10px] text-gray-500 font-bold uppercase">TÚ</span>
+                <span class="text-2xl font-black text-blue-600 leading-none" id="score-player">0</span>
             </div>
 
-            <!-- Info Central -->
+            <!-- Estado -->
             <div class="flex flex-col items-center">
-                <div id="turn-indicator" class="px-4 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-bold mb-1">
+                <div id="turn-indicator" class="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold mb-1">
                     Tu Turno
                 </div>
-                <div class="text-xs text-gray-400">Nivel: <span id="level-display" class="font-bold text-gray-600">Fácil</span></div>
+                <div class="text-[10px] text-gray-400">Nivel: <span id="level-display" class="font-bold">Fácil</span></div>
             </div>
 
-            <!-- IA -->
-            <div class="flex flex-col items-center score-box" id="ai-score-box">
-                <span class="text-xs text-gray-500 uppercase font-bold tracking-wider">IA</span>
-                <div class="text-3xl font-black text-red-500" id="score-ai">0</div>
+            <!-- Puntuación IA -->
+            <div class="flex flex-col items-center w-16" id="ai-score-box">
+                <span class="text-[10px] text-gray-500 font-bold uppercase">IA</span>
+                <span class="text-2xl font-black text-red-500 leading-none" id="score-ai">0</span>
             </div>
-        </div>
-    </header>
+        </header>
 
-    <!-- ÁREA DE JUEGO (Scrollable) -->
-    <main class="flex-1 overflow-auto p-4 flex items-center justify-center bg-gray-50">
-        <div id="board" class="game-board shadow-xl rounded-lg overflow-hidden">
-            <!-- Grid generated by JS -->
-        </div>
-    </main>
-
-    <!-- CONTROLES DEL JUGADOR -->
-    <footer class="bg-white border-t border-gray-200 p-4 z-20">
-        <div class="max-w-2xl mx-auto">
-            <div class="text-center text-gray-400 text-xs mb-2">Arrastra las letras a la cuadrícula</div>
+        <!-- MAIN BOARD -->
+        <main>
+            <div id="board" class="game-board rounded-md overflow-hidden">
+                <!-- Grid generada por JS -->
+            </div>
             
-            <div id="rack" class="rack-container bg-gray-100 rounded-xl mb-4 shadow-inner">
-                <!-- Tiles generated by JS -->
+            <!-- Mensaje flotante de carga -->
+            <div id="loading-msg" class="absolute inset-0 flex items-center justify-center bg-white/80 z-20 hidden">
+                <span class="text-blue-600 font-bold animate-pulse">Generando tablero...</span>
+            </div>
+        </main>
+
+        <!-- FOOTER CONTROLS -->
+        <footer>
+            <div class="text-center text-gray-400 text-[10px] mb-1">Selecciona letra y toca casilla</div>
+            
+            <div id="rack" class="rack-container bg-gray-50 rounded-lg mb-2 shadow-inner border border-gray-100">
+                <!-- Fichas generadas por JS -->
             </div>
 
-            <div class="flex gap-2">
-                <button onclick="game.passTurn()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-4 rounded-lg transition">
-                    Pasar Turno
+            <div class="flex gap-2 h-10">
+                <button id="btn-pass" class="flex-1 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-600 text-sm font-bold rounded-lg transition">
+                    Pasar
                 </button>
-                <button onclick="game.shuffleRack()" class="w-12 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-lg flex items-center justify-center">
+                <button id="btn-shuffle" class="w-12 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-600 rounded-lg flex items-center justify-center">
                     <i class="fa-solid fa-shuffle"></i>
                 </button>
             </div>
-        </div>
-    </footer>
+        </footer>
+    </div>
 
-    <!-- MODAL DE INICIO / SELECCIÓN DE NIVEL -->
-    <div id="start-modal" class="modal-overlay fixed inset-0 flex items-center justify-center z-50">
-        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center">
-            <h1 class="text-2xl font-black text-gray-800 mb-2">Crucigrama VS IA</h1>
-            <p class="text-gray-500 mb-6">Completa las palabras antes que la máquina.</p>
+    <!-- MODAL INICIO -->
+    <div id="start-modal" class="modal-overlay fixed inset-0 flex items-center justify-center z-50 px-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center">
+            <h1 class="text-xl font-black text-gray-800 mb-1">ArrowWord vs IA</h1>
+            <p class="text-xs text-gray-500 mb-6">Completa palabras. ¡Gana a la máquina!</p>
             
-            <div class="space-y-3">
-                <button onclick="game.start('easy')" class="w-full bg-green-100 hover:bg-green-200 text-green-700 font-bold py-3 rounded-lg border border-green-300 transition flex items-center justify-center gap-2">
-                    <span>🐣</span> Fácil
+            <div class="space-y-2">
+                <button class="btn-start w-full bg-green-50 text-green-700 hover:bg-green-100 font-bold py-3 rounded-xl border border-green-200 transition text-sm" data-diff="easy">
+                    🐣 Fácil
                 </button>
-                <button onclick="game.start('medium')" class="w-full bg-yellow-100 hover:bg-yellow-200 text-yellow-700 font-bold py-3 rounded-lg border border-yellow-300 transition flex items-center justify-center gap-2">
-                    <span>🤔</span> Intermedio
+                <button class="btn-start w-full bg-yellow-50 text-yellow-700 hover:bg-yellow-100 font-bold py-3 rounded-xl border border-yellow-200 transition text-sm" data-diff="medium">
+                    🤔 Intermedio
                 </button>
-                <button onclick="game.start('hard')" class="w-full bg-red-100 hover:bg-red-200 text-red-700 font-bold py-3 rounded-lg border border-red-300 transition flex items-center justify-center gap-2">
-                    <span>🤖</span> Difícil
+                <button class="btn-start w-full bg-red-50 text-red-700 hover:bg-red-100 font-bold py-3 rounded-xl border border-red-200 transition text-sm" data-diff="hard">
+                    🤖 Difícil
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- LÓGICA JAVASCRIPT -->
-    <script>
-        // --- 1. DATOS (VOCABULARIO) ---
-        // Pegamos aquí el JSON optimizado que generamos
-        const VOCABULARY = [
-            { "palabra": "yo", "traduccion_ingles": "I 🙋" },
-            { "palabra": "tu", "traduccion_ingles": "you 👉" },
-            { "palabra": "el", "traduccion_ingles": "he 👨" },
-            { "palabra": "sol", "traduccion_ingles": "☀️" },
-            { "palabra": "pan", "traduccion_ingles": "🥖" },
-            { "palabra": "luz", "traduccion_ingles": "💡" },
-            { "palabra": "casa", "traduccion_ingles": "🏠" },
-            { "palabra": "gato", "traduccion_ingles": "🐱" },
-            { "palabra": "agua", "traduccion_ingles": "💧" },
-            { "palabra": "rojo", "traduccion_ingles": "🔴" },
-            { "palabra": "azul", "traduccion_ingles": "🔵" },
-            { "palabra": "mesa", "traduccion_ingles": "🪑" },
-            { "palabra": "libro", "traduccion_ingles": "📖" },
-            { "palabra": "perro", "traduccion_ingles": "🐶" },
-            { "palabra": "feliz", "traduccion_ingles": "😄" },
-            { "palabra": "padre", "traduccion_ingles": "👨" },
-            { "palabra": "madre", "traduccion_ingles": "👩" },
-            { "palabra": "coche", "traduccion_ingles": "🚗" },
-            { "palabra": "playa", "traduccion_ingles": "🏖️" },
-            { "palabra": "verde", "traduccion_ingles": "🟢" },
-            { "palabra": "noche", "traduccion_ingles": "🌙" },
-            { "palabra": "comer", "traduccion_ingles": "🍽️" },
-            { "palabra": "beber", "traduccion_ingles": "🥤" },
-            { "palabra": "amigo", "traduccion_ingles": "🤛" },
-            { "palabra": "lunes", "traduccion_ingles": "Monday" },
-            { "palabra": "abuelo", "traduccion_ingles": "👴" },
-            { "palabra": "dinero", "traduccion_ingles": "💰" },
-            { "palabra": "escuela", "traduccion_ingles": "🏫" },
-            { "palabra": "trabajo", "traduccion_ingles": "💼" },
-            { "palabra": "familia", "traduccion_ingles": "👨‍👩‍👧" },
-            { "palabra": "manzana", "traduccion_ingles": "🍎" },
-            { "palabra": "semana", "traduccion_ingles": "week" },
-            { "palabra": "tiempo", "traduccion_ingles": "weather" },
-            { "palabra": "comida", "traduccion_ingles": "food" },
-            { "palabra": "ciudad", "traduccion_ingles": "🏙️" },
-            { "palabra": "musica", "traduccion_ingles": "🎵" } // Sin tildes para simplificar el juego A1
-        ];
-
-        // --- 2. CLASE GRID SYSTEM (Generación del tablero) ---
-        class GridSystem {
-            constructor(rows, cols) {
-                this.rows = rows;
-                this.cols = cols;
-                this.grid = Array(rows).fill().map(() => Array(cols).fill(null));
-                // Matriz de solución (letras correctas)
-                this.solution = Array(rows).fill().map(() => Array(cols).fill(null));
-                // Estado actual del tablero (letras puestas por jugadores)
-                this.currentState = Array(rows).fill().map(() => Array(cols).fill(null));
-                
-                this.words = []; // Lista de objetos {word, r, c, dir, hint}
-            }
-
-            // Para asegurar que el juego funcione, usaremos un layout predefinido robusto
-            // C = Clue, . = Espacio vacío
-            generateLayout() {
-                // Limpiar
-                this.grid = Array(this.rows).fill().map(() => Array(this.cols).fill(null));
-                this.solution = Array(this.rows).fill().map(() => Array(this.cols).fill(''));
-                
-                // Definir palabras manualmente para garantizar cruces en esta demo 
-                // (En una version completa, esto sería un algoritmo de backtracking)
-                
-                const layoutWords = [
-                    // Horizontales
-                    { word: "ESCUELA", r: 1, c: 1, dir: 'h', hint: "🏫" },
-                    { word: "ROJO", r: 3, c: 1, dir: 'h', hint: "🔴" },
-                    { word: "GATO", r: 3, c: 6, dir: 'h', hint: "🐱" }, // Requiere pista interna
-                    { word: "FAMILIA", r: 5, c: 1, dir: 'h', hint: "👨‍👩‍👧" },
-                    { word: "AGUA", r: 7, c: 2, dir: 'h', hint: "💧" },
-                    { word: "SOL", r: 9, c: 5, dir: 'h', hint: "☀️" },
-
-                    // Verticales
-                    { word: "PERRO", r: 1, c: 1, dir: 'v', hint: "🐶" },
-                    { word: "COCHE", r: 1, c: 3, dir: 'v', hint: "🚗" },
-                    { word: "LIBRO", r: 1, c: 5, dir: 'v', hint: "📖" },
-                    { word: "AUTO", r: 1, c: 7, dir: 'v', hint: "🚗 (LatAm)" }, // Cruza con Gato
-                    { word: "CASA", r: 3, c: 2, dir: 'v', hint: "🏠" }, 
-                    { word: "AMIGO", r: 5, c: 4, dir: 'v', hint: "🤛" },
-                    { word: "LUZ", r: 5, c: 6, dir: 'v', hint: "💡" },
-                    { word: "PAN", r: 7, c: 7, dir: 'v', hint: "🥖" }
-                ];
-
-                layoutWords.forEach(w => this.placeWord(w));
-                this.fillClueCells();
-            }
-
-            placeWord(w) {
-                const len = w.word.length;
-                // Guardar la palabra en la lista lógica
-                this.words.push(w);
-
-                // Escribir en la matriz de solución
-                for(let i=0; i<len; i++) {
-                    let r = w.r + (w.dir === 'v' ? i : 0);
-                    let c = w.c + (w.dir === 'h' ? i : 0);
-                    this.solution[r][c] = w.word[i];
-                    this.grid[r][c] = { type: 'game', char: w.word[i] }; // Marcamos como celda de juego
-                }
-            }
-
-            fillClueCells() {
-                // Lógica para colocar las celdas de pista basadas en donde empiezan las palabras
-                this.words.forEach(w => {
-                    let clueR = w.r;
-                    let clueC = w.c;
-
-                    if (w.dir === 'h') clueC = w.c - 1;
-                    if (w.dir === 'v') clueR = w.r - 1;
-
-                    // Si ya existe una celda ahí, la actualizamos, si no, la creamos
-                    if (!this.grid[clueR][clueC] || this.grid[clueR][clueC].type !== 'clue') {
-                        this.grid[clueR][clueC] = { type: 'clue', hints: {} };
-                    }
-
-                    // Añadir la pista
-                    if (w.dir === 'h') this.grid[clueR][clueC].hints.right = w.hint;
-                    if (w.dir === 'v') this.grid[clueR][clueC].hints.down = w.hint;
-                });
-                
-                // Rellenar el resto de vacíos con bloques negros o decorativos si fuera necesario
-                // Para simplificar, lo que sea null se renderiza como bloque vacío/negro
-            }
-
-            getEmptyCells() {
-                let empties = [];
-                for(let r=0; r<this.rows; r++) {
-                    for(let c=0; c<this.cols; c++) {
-                        // Si es celda de juego Y no tiene letra puesta por usuario/IA
-                        if (this.grid[r][c]?.type === 'game' && !this.currentState[r][c]) {
-                            empties.push({r, c, correctChar: this.solution[r][c]});
-                        }
-                    }
-                }
-                return empties;
-            }
-        }
-
-        // --- 3. LÓGICA DEL JUEGO (GAME ENGINE) ---
-        class Game {
-            constructor() {
-                this.gridSystem = new GridSystem(10, 8);
-                this.score = { player: 0, ai: 0 };
-                this.difficulty = 'easy';
-                this.playerRack = [];
-                this.isPlayerTurn = true; // Empieza el jugador
-                this.selectedTile = null;
-            }
-
-            init() {
-                this.gridSystem.generateLayout();
-                this.renderGrid();
-                this.fillPlayerRack();
-                // Ocultar modal
-                document.getElementById('start-modal').style.display = 'none';
-            }
-
-            start(diff) {
-                this.difficulty = diff;
-                document.getElementById('level-display').textContent = 
-                    diff === 'easy' ? 'Fácil' : diff === 'medium' ? 'Intermedio' : 'Difícil';
-                this.init();
-            }
-
-            // --- Renderizado ---
-            renderGrid() {
-                const board = document.getElementById('board');
-                board.innerHTML = ''; // Limpiar
-
-                for(let r=0; r<10; r++) {
-                    for(let c=0; c<8; c++) {
-                        const cellData = this.gridSystem.grid[r][c];
-                        const div = document.createElement('div');
-                        div.className = 'cell';
-                        div.dataset.r = r;
-                        div.dataset.c = c;
-
-                        if (cellData && cellData.type === 'clue') {
-                            div.classList.add('clue-cell');
-                            let html = '';
-                            if (cellData.hints.right) html += `<div class="arrow-right mb-1">${cellData.hints.right}</div>`;
-                            if (cellData.hints.down) html += `<div class="arrow-down">${cellData.hints.down}</div>`;
-                            div.innerHTML = html;
-                        } 
-                        else if (cellData && cellData.type === 'game') {
-                            div.classList.add('game-cell');
-                            // Eventos Drop
-                            div.ondragover = (e) => e.preventDefault();
-                            div.ondrop = (e) => this.handleDrop(e, r, c);
-                            div.onclick = () => this.handleTouchCell(r, c); // Para tap en móvil tras seleccionar letra
-
-                            // Mostrar letra si ya está puesta
-                            const currentVal = this.gridSystem.currentState[r][c];
-                            if (currentVal) {
-                                div.textContent = currentVal.char;
-                                div.classList.add(currentVal.owner === 'ai' ? 'filled-ai' : 'filled-player');
-                            }
-                        } else {
-                            // Celda vacía (bloque)
-                            div.style.backgroundColor = '#cbd5e1';
-                        }
-                        board.appendChild(div);
-                    }
-                }
-            }
-
-            renderRack() {
-                const rack = document.getElementById('rack');
-                rack.innerHTML = '';
-                this.playerRack.forEach((char, index) => {
-                    const tile = document.createElement('div');
-                    tile.className = 'tile';
-                    tile.textContent = char;
-                    tile.draggable = true;
-                    
-                    // Eventos Drag Desktop
-                    tile.ondragstart = (e) => {
-                        e.dataTransfer.setData('text/plain', char);
-                        e.dataTransfer.setData('index', index);
-                        tile.classList.add('dragging');
-                    };
-                    tile.ondragend = () => tile.classList.remove('dragging');
-
-                    // Eventos Click/Touch (Selección)
-                    tile.onclick = () => {
-                        // Deseleccionar otros
-                        document.querySelectorAll('.tile').forEach(t => t.style.borderColor = '#cbd5e1');
-                        if (this.selectedTile === index) {
-                            this.selectedTile = null; // Deseleccionar
-                        } else {
-                            this.selectedTile = index;
-                            tile.style.borderColor = '#3b82f6'; // Azul selección
-                            tile.style.transform = 'translateY(-5px)';
-                        }
-                    };
-
-                    rack.appendChild(tile);
-                });
-            }
-
-            // --- Lógica de Juego ---
-            
-            fillPlayerRack() {
-                // Llenar hasta tener 5 letras
-                // ESTRATEGIA: Dar letras útiles (del tablero) + algo de ruido
-                const emptyCells = this.gridSystem.getEmptyCells();
-                
-                while(this.playerRack.length < 5 && emptyCells.length > 0) {
-                    // 70% probabilidad de letra útil, 30% aleatoria
-                    if (Math.random() < 0.7) {
-                        const randomCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
-                        this.playerRack.push(randomCell.correctChar);
-                    } else {
-                        const abc = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-                        this.playerRack.push(abc[Math.floor(Math.random() * abc.length)]);
-                    }
-                }
-                this.renderRack();
-            }
-
-            handleDrop(e, r, c) {
-                e.preventDefault();
-                if (!this.isPlayerTurn) return;
-
-                const char = e.dataTransfer.getData('text/plain');
-                const index = e.dataTransfer.getData('index');
-                
-                this.attemptMove(r, c, char, parseInt(index));
-            }
-
-            handleTouchCell(r, c) {
-                if (!this.isPlayerTurn || this.selectedTile === null) return;
-                
-                const char = this.playerRack[this.selectedTile];
-                this.attemptMove(r, c, char, this.selectedTile);
-                this.selectedTile = null; // Reset selección
-            }
-
-            attemptMove(r, c, char, rackIndex) {
-                // Verificar si la celda es válida y está vacía
-                const cellData = this.gridSystem.grid[r][c];
-                const currentVal = this.gridSystem.currentState[r][c];
-
-                if (!cellData || cellData.type !== 'game' || currentVal) return;
-
-                // 1. Quitar letra del rack
-                this.playerRack.splice(rackIndex, 1);
-                
-                // 2. Colocar en tablero
-                const isCorrect = (char === this.gridSystem.solution[r][c]);
-                
-                // Animación y lógica
-                const cellDiv = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
-                
-                if (isCorrect) {
-                    this.gridSystem.currentState[r][c] = { char: char, owner: 'player' };
-                    cellDiv.textContent = char;
-                    cellDiv.classList.add('filled-player', 'correct-flash');
-                    this.updateScore('player', 1);
-                    this.checkWordCompletion(r, c, 'player');
-                } else {
-                    // Error: Penalización y no se pone la ficha (se pierde)
-                    cellDiv.classList.add('error-shake');
-                    setTimeout(() => cellDiv.classList.remove('error-shake'), 500);
-                    this.updateScore('player', -1);
-                }
-
-                this.renderRack(); // Actualizar mano
-                
-                // Verificar si ganó o acabó turno (Opcional: pasar turno tras 1 movimiento o dejar seguir)
-                // En este diseño: El jugador juega hasta que quiera pasar o se quede sin letras.
-                // Pero para dinamismo, recargamos rack si se vacía.
-                if (this.playerRack.length === 0) this.fillPlayerRack();
-            }
-
-            checkWordCompletion(r, c, who) {
-                // Verificar palabras horizontales y verticales que pasan por (r,c)
-                // Buscamos en this.gridSystem.words las que pasan por aquí
-                const words = this.gridSystem.words.filter(w => {
-                    if (w.dir === 'h') return w.r === r && c >= w.c && c < w.c + w.word.length;
-                    if (w.dir === 'v') return w.c === c && r >= w.r && r < w.r + w.word.length;
-                    return false;
-                });
-
-                words.forEach(w => {
-                    // Verificar si la palabra está completa en currentState
-                    let isComplete = true;
-                    for(let i=0; i<w.word.length; i++) {
-                        let cr = w.r + (w.dir === 'v' ? i : 0);
-                        let cc = w.c + (w.dir === 'h' ? i : 0);
-                        if (!this.gridSystem.currentState[cr][cc]) {
-                            isComplete = false;
-                            break;
-                        }
-                    }
-
-                    if (isComplete) {
-                        // Bonus!
-                        const points = w.word.length; // Puntos por longitud
-                        this.updateScore(who, points);
-                        // Feedback visual (podría iluminar toda la palabra, omitido por brevedad)
-                    }
-                });
-            }
-
-            updateScore(who, points) {
-                this.score[who] += points;
-                const el = document.getElementById(`score-${who}`);
-                el.textContent = this.score[who];
-                
-                // Animación flotante
-                const box = document.getElementById(`${who}-score-box`);
-                const float = document.createElement('div');
-                float.className = 'score-change text-' + (who==='player'?'blue':'red') + '-600';
-                float.textContent = points > 0 ? `+${points}` : points;
-                box.appendChild(float);
-                setTimeout(() => float.remove(), 1000);
-            }
-
-            passTurn() {
-                if (!this.isPlayerTurn) return;
-                this.isPlayerTurn = false;
-                document.getElementById('turn-indicator').textContent = "Turno IA...";
-                document.getElementById('turn-indicator').className = "px-4 py-1 rounded-full bg-red-100 text-red-800 text-sm font-bold mb-1";
-                
-                // Simular pensamiento IA
-                setTimeout(() => ai.makeMove(), 1500);
-            }
-
-            shuffleRack() {
-                if(!this.isPlayerTurn) return;
-                // Fisher-Yates shuffle
-                for (let i = this.playerRack.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [this.playerRack[i], this.playerRack[j]] = [this.playerRack[j], this.playerRack[i]];
-                }
-                this.renderRack();
-            }
-        }
-
-        // --- 4. INTELIGENCIA ARTIFICIAL ---
-        class AI {
-            makeMove() {
-                const empties = game.gridSystem.getEmptyCells();
-                if (empties.length === 0) {
-                    alert("¡Juego Terminado!");
-                    return;
-                }
-
-                let movesToMake = 0;
-                let moveType = 'random';
-
-                // Configurar comportamiento según dificultad
-                if (game.difficulty === 'easy') {
-                    movesToMake = Math.random() > 0.5 ? 2 : 1;
-                    moveType = 'random';
-                } 
-                else if (game.difficulty === 'hard') {
-                    movesToMake = Math.floor(Math.random() * 3) + 3; // 3 a 5
-                    moveType = 'best';
-                }
-                else { // Medium
-                    movesToMake = Math.floor(Math.random() * 2) + 2; // 2 a 3
-                    moveType = Math.random() > 0.5 ? 'best' : 'random';
-                }
-
-                this.performMoves(movesToMake, moveType, empties);
-            }
-
-            performMoves(count, type, availableCells) {
-                if (count <= 0 || availableCells.length === 0) {
-                    this.endTurn();
-                    return;
-                }
-
-                let selectedCell = null;
-
-                if (type === 'random') {
-                    const idx = Math.floor(Math.random() * availableCells.length);
-                    selectedCell = availableCells[idx];
-                    // Quitar de disponibles
-                    availableCells.splice(idx, 1);
-                } 
-                else if (type === 'best') {
-                    // LÓGICA VORAZ (GREEDY)
-                    // Calcular puntos potenciales de cada celda vacía
-                    let bestScore = -1;
-                    let bestIdx = -1;
-
-                    availableCells.forEach((cell, idx) => {
-                        let potentialPoints = 1; // +1 por letra
-                        
-                        // Simular que ponemos la letra y ver si completa palabra
-                        // (Nota: Esto es una simplificación de la lógica checkWordCompletion)
-                        // Aquí asumimos que la IA "sabe" qué palabras completaría
-                        
-                        // Check horizontal y vertical neighbors en la solución
-                        // Si neighbors + esta celda == longitud palabra, puntos extra
-                        // Esto requiere revisar game.gridSystem.words
-                        
-                        const wordsAffected = game.gridSystem.words.filter(w => {
-                            // Check si cell está dentro de word w
-                            if (w.dir === 'h') return w.r === cell.r && cell.c >= w.c && cell.c < w.c + w.word.length;
-                            if (w.dir === 'v') return w.c === cell.c && cell.r >= w.r && cell.r < w.r + w.word.length;
-                            return false;
-                        });
-
-                        wordsAffected.forEach(w => {
-                            // Contar huecos vacíos en esa palabra
-                            let gaps = 0;
-                            for(let i=0; i<w.word.length; i++) {
-                                let cr = w.r + (w.dir === 'v' ? i : 0);
-                                let cc = w.c + (w.dir === 'h' ? i : 0);
-                                // Si está vacía Y no es la celda que estamos evaluando
-                                if (!game.gridSystem.currentState[cr][cc] && !(cr===cell.r && cc===cell.c)) {
-                                    gaps++;
-                                }
-                            }
-                            if (gaps === 0) potentialPoints += w.word.length; // Completa palabra
-                        });
-
-                        if (potentialPoints > bestScore) {
-                            bestScore = potentialPoints;
-                            bestIdx = idx;
-                        }
-                    });
-
-                    selectedCell = availableCells[bestIdx];
-                    availableCells.splice(bestIdx, 1);
-                }
-
-                // Ejecutar movimiento visualmente
-                const {r, c, correctChar} = selectedCell;
-                game.gridSystem.currentState[r][c] = { char: correctChar, owner: 'ai' };
-                
-                // Actualizar UI
-                const cellDiv = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
-                cellDiv.textContent = correctChar;
-                cellDiv.classList.add('filled-ai');
-                
-                game.updateScore('ai', 1);
-                game.checkWordCompletion(r, c, 'ai');
-
-                // Siguiente movimiento con delay para efecto "tecleando"
-                setTimeout(() => {
-                    this.performMoves(count - 1, type, availableCells);
-                }, 800);
-            }
-
-            endTurn() {
-                game.isPlayerTurn = true;
-                document.getElementById('turn-indicator').textContent = "Tu Turno";
-                document.getElementById('turn-indicator').className = "px-4 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-bold mb-1";
-                game.fillPlayerRack(); // Rellenar letras del jugador si le faltan
-            }
-        }
-
-        // INICIALIZACIÓN
-        const game = new Game();
-        const ai = new AI();
-        
-        // Prevenir scroll en móviles al arrastrar
-        document.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
-
-    </script>
+    <!-- Tu lógica del juego -->
+    <script src="script.js"></script>
 </body>
 </html>
