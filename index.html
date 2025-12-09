@@ -23,7 +23,10 @@
                 <div id="turn-indicator" class="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold mb-1">
                     Tu Turno
                 </div>
-                <div class="text-[10px] text-gray-400">Nivel: <span id="level-display" class="font-bold">Fácil</span></div>
+                <div class="text-[10px] text-gray-400">
+                    <span id="lang-level-display" class="font-bold text-gray-600 mr-1">A1</span>
+                    <span id="difficulty-display" class="font-bold">Fácil</span>
+                </div>
             </div>
             <div class="flex flex-col items-center w-16" id="ai-score-box">
                 <span class="text-[10px] text-gray-500 font-bold uppercase">IA</span>
@@ -37,7 +40,10 @@
                 <!-- Grid JS -->
             </div>
             <div id="loading-msg" class="absolute inset-0 flex items-center justify-center bg-white/80 z-20 hidden">
-                <span class="text-blue-600 font-bold animate-pulse">Generando tablero...</span>
+                <div class="text-center">
+                    <i class="fas fa-spinner fa-spin text-3xl text-blue-500 mb-2"></i>
+                    <p class="text-blue-600 font-bold animate-pulse">Generando tablero...</p>
+                </div>
             </div>
         </main>
 
@@ -46,7 +52,13 @@
             <div class="text-center text-gray-400 text-[10px] mb-1">Selecciona letra y toca casilla</div>
             <div id="rack" class="rack-container bg-gray-50 rounded-lg mb-2 shadow-inner border border-gray-100"></div>
             <div class="flex gap-2 h-10">
-                <button id="btn-pass" class="flex-1 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-600 text-sm font-bold rounded-lg transition">Pasar</button>
+                <!-- Botón Resolver -->
+                <button id="btn-solve" class="w-12 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded-lg flex items-center justify-center transition border border-yellow-200" title="Resolver Puzle">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </button>
+                
+                <button id="btn-pass" class="flex-1 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-600 text-sm font-bold rounded-lg transition">Pasar Turno</button>
+                
                 <button id="btn-shuffle" class="w-12 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-600 rounded-lg flex items-center justify-center">
                     <i class="fa-solid fa-shuffle"></i>
                 </button>
@@ -54,16 +66,61 @@
         </footer>
     </div>
 
-    <!-- MODAL -->
-    <div id="start-modal" class="modal-overlay fixed inset-0 flex items-center justify-center z-50 px-4">
+    <!-- MODAL 1: SELECCIÓN DE NIVEL (VOCABULARIO) -->
+    <div id="level-modal" class="modal-overlay fixed inset-0 flex items-center justify-center z-50 px-4">
         <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center">
-            <h1 class="text-xl font-black text-gray-800 mb-1">ArrowWord vs IA</h1>
-            <p class="text-xs text-gray-500 mb-6">Completa palabras. ¡Gana a la máquina!</p>
-            <div class="space-y-2">
-                <button class="btn-start w-full bg-green-50 text-green-700 hover:bg-green-100 font-bold py-3 rounded-xl border border-green-200 transition text-sm" data-diff="easy">🐣 Fácil</button>
-                <button class="btn-start w-full bg-yellow-50 text-yellow-700 hover:bg-yellow-100 font-bold py-3 rounded-xl border border-yellow-200 transition text-sm" data-diff="medium">🤔 Intermedio</button>
-                <button class="btn-start w-full bg-red-50 text-red-700 hover:bg-red-100 font-bold py-3 rounded-xl border border-red-200 transition text-sm" data-diff="hard">🤖 Difícil</button>
+            <h1 class="text-2xl font-black text-gray-800 mb-2">ArrowWord</h1>
+            <p class="text-sm text-gray-500 mb-6">Elige tu nivel de vocabulario</p>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <!-- Niveles Activos -->
+                <button class="btn-level bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200" data-file="vocabulaio-a1.json" data-label="A1">
+                    <span class="block text-xl font-bold">A1</span>
+                    <span class="text-xs">Principiante</span>
+                </button>
+                <button class="btn-level bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200" data-file="vocabulario_a2.json" data-label="A2">
+                    <span class="block text-xl font-bold">A2</span>
+                    <span class="text-xs">Elemental</span>
+                </button>
+
+                <!-- Niveles Inactivos -->
+                <button class="btn-level-locked opacity-40 cursor-not-allowed bg-gray-100 text-gray-400 border border-gray-200" disabled>
+                    <span class="block text-xl font-bold">B1</span>
+                </button>
+                <button class="btn-level-locked opacity-40 cursor-not-allowed bg-gray-100 text-gray-400 border border-gray-200" disabled>
+                    <span class="block text-xl font-bold">B2</span>
+                </button>
+                <button class="btn-level-locked opacity-40 cursor-not-allowed bg-gray-100 text-gray-400 border border-gray-200" disabled>
+                    <span class="block text-xl font-bold">C1</span>
+                </button>
+                <button class="btn-level-locked opacity-40 cursor-not-allowed bg-gray-100 text-gray-400 border border-gray-200" disabled>
+                    <span class="block text-xl font-bold">C2</span>
+                </button>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: SELECCIÓN DE DIFICULTAD (IA) -->
+    <div id="difficulty-modal" class="modal-overlay fixed inset-0 flex items-center justify-center z-50 px-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm text-center">
+            <h2 class="text-xl font-black text-gray-800 mb-1">Dificultad</h2>
+            <p class="text-xs text-gray-500 mb-6">Elige la inteligencia de tu rival</p>
+            
+            <div class="space-y-2">
+                <button class="btn-start w-full bg-green-50 text-green-700 hover:bg-green-100 font-bold py-3 rounded-xl border border-green-200 transition text-sm flex items-center justify-center gap-2" data-diff="easy">
+                    <span>🐣</span> Fácil
+                </button>
+                <button class="btn-start w-full bg-yellow-50 text-yellow-700 hover:bg-yellow-100 font-bold py-3 rounded-xl border border-yellow-200 transition text-sm flex items-center justify-center gap-2" data-diff="medium">
+                    <span>🤔</span> Intermedio
+                </button>
+                <button class="btn-start w-full bg-red-50 text-red-700 hover:bg-red-100 font-bold py-3 rounded-xl border border-red-200 transition text-sm flex items-center justify-center gap-2" data-diff="hard">
+                    <span>🤖</span> Difícil
+                </button>
+            </div>
+            
+            <button id="btn-back-level" class="mt-4 text-xs text-gray-400 hover:text-gray-600 underline">
+                Cambiar Nivel
+            </button>
         </div>
     </div>
 
