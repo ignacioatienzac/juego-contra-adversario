@@ -5,199 +5,203 @@ let VOCABULARY = [];
 async function loadVocabulary() {
     try {
         const response = await fetch('vocabulario_a1.json');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         
-        // Procesar y asignar a la variable global
+        // Procesar y asignar
         VOCABULARY = data.map(v => ({
             raw: v.palabra,
-            // Quitamos tildes y mayúsculas para facilitar cruces
+            // Normalizar: mayúsculas y sin tildes para el tablero
             clean: v.palabra.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase(),
             hint: v.traduccion_ingles
-        })).filter(w => w.clean.length > 1 && w.clean.length <= 8); // Filtrar palabras muy largas
+        })).filter(w => w.clean.length > 1 && w.clean.length <= 8); 
         
         console.log("Vocabulario cargado:", VOCABULARY.length, "palabras");
 
-        // Habilitar botones de inicio ahora que tenemos datos
+        // Habilitar botones
         document.querySelectorAll('.btn-start').forEach(btn => {
             btn.classList.remove('opacity-50', 'cursor-not-allowed');
             btn.disabled = false;
-            // Actualizar texto para indicar listo
-            const originalText = btn.innerText;
-            btn.innerText = originalText.replace('(Cargando...)', '');
         });
 
     } catch (error) {
         console.error("Error cargando vocabulario:", error);
-        alert("Error cargando el archivo 'vocabulario_a1.json'. Asegúrate de que está en la misma carpeta.");
+        alert("Error cargando 'vocabulario_a1.json'. Verifica que el archivo existe.");
     }
 }
 
-// --- 2. GENERADOR DE CRUCIGRAMAS ---
+// --- GENERADOR DE ARROWWORDS (DENSIDAD ALTA) ---
 class CrosswordGenerator {
     constructor(rows, cols) {
         this.rows = rows;
         this.cols = cols;
-        this.grid = null;
+        this.grid = null; // Matriz bidimensional
         this.placedWords = [];
     }
 
     generate() {
-        if (VOCABULARY.length === 0) {
-            console.error("No hay vocabulario cargado");
-            return null;
-        }
+        if (VOCABULARY.length === 0) return null;
 
-        // Intentar generar varias veces si falla
-        for (let attempt = 0; attempt < 10; attempt++) {
+        // Intentamos varias veces generar un tablero válido
+        for (let attempt = 0; attempt < 20; attempt++) {
+            // 1. Inicializar Grid Vacío
             this.grid = Array(this.rows).fill().map(() => Array(this.cols).fill(null));
             this.placedWords = [];
-            
-            // 1. Colocar primera palabra (la más larga posible para abrir el tablero)
-            const seeds = [...VOCABULARY].sort((a, b) => b.clean.length - a.clean.length).slice(0, 10);
-            const seed = seeds[Math.floor(Math.random() * seeds.length)];
-            
-            // Colocar en el centro aprox
-            const startR = Math.floor(this.rows / 2) - Math.floor(seed.clean.length / 2) + 1;
-            const startC = Math.floor(this.cols / 2);
-            
-            if (this.placeWord(seed, startR, startC, 'v')) { // Empezar vertical suele ayudar
-                // 2. Intentar colocar más palabras
-                this.fillGrid(300); // 300 intentos de colocación
-                
-                // Validar si el tablero es decente (al menos 4 palabras)
-                if (this.placedWords.length >= 4) {
-                    // Rellenar pistas (Clue placement logic)
-                    this.placeClues();
-                    return { grid: this.grid, words: this.placedWords };
-                }
+
+            // 2. Marcar Fila 0 y Columna 0 como RESERVADAS (Solo Pistas)
+            // No ponemos null, ponemos un marcador especial para saber que es zona de pistas
+            for(let r=0; r<this.rows; r++) this.grid[r][0] = { type: 'reserved_clue' };
+            for(let c=0; c<this.cols; c++) this.grid[0][c] = { type: 'reserved_clue' };
+
+            // 3. Colocar palabras agresivamente
+            this.fillBoardLogic();
+
+            // 4. Validar calidad (mínimo de palabras para que sea jugable)
+            if (this.placedWords.length >= 5) {
+                this.finalizeBoard(); // Rellenar huecos vacíos
+                return { grid: this.grid, words: this.placedWords };
             }
         }
-        // Fallback (debería ser raro con buen vocabulario)
         return null;
     }
 
-    fillGrid(maxAttempts) {
-        for (let i = 0; i < maxAttempts; i++) {
-            const wordObj = VOCABULARY[Math.floor(Math.random() * VOCABULARY.length)];
-            if (this.placedWords.some(pw => pw.clean === wordObj.clean)) continue;
-
-            // Buscar intersecciones posibles
-            const matches = this.findIntersections(wordObj.clean);
-            
-            for (const match of matches) {
-                if (this.placeWord(wordObj, match.r, match.c, match.dir)) break;
-            }
+    fillBoardLogic() {
+        // Ordenamos vocabulario por longitud (largas primero ayuda a estructurar)
+        // Pero añadimos algo de aleatoriedad para que no sea siempre igual
+        const shuffledVocab = [...VOCABULARY].sort(() => Math.random() - 0.5);
+        
+        // Intentar colocar cada palabra del vocabulario
+        for (const wordObj of shuffledVocab) {
+            this.tryPlaceWordEverywhere(wordObj);
         }
     }
 
-    findIntersections(word) {
-        const matches = [];
-        // Recorrer el tablero buscando letras que coincidan
-        for (let r = 0; r < this.rows; r++) {
-            for (let c = 0; c < this.cols; c++) {
-                if (this.grid[r][c] && this.grid[r][c].char) {
-                    const char = this.grid[r][c].char;
-                    // Buscar este char en la nueva palabra
-                    for (let k = 0; k < word.length; k++) {
-                        if (word[k] === char) {
-                            // Posible intersección
-                            // Si la letra en tablero es parte de una vertical, intentamos poner horizontal
-                            matches.push({ r: r, c: c - k, dir: 'h' }); 
-                            matches.push({ r: r - k, c: c, dir: 'v' });
-                        }
-                    }
+    tryPlaceWordEverywhere(wordObj) {
+        // Crear lista de todas las posiciones posibles para esta palabra
+        const candidates = [];
+        const len = wordObj.clean.length;
+
+        // Barrido Horizontal
+        // Empezamos en c=1 porque c=0 es reservado. Terminamos ajustado a len.
+        for (let r = 1; r < this.rows; r++) {
+            for (let c = 1; c <= this.cols - len; c++) {
+                if (this.canPlace(wordObj.clean, r, c, 'h')) {
+                    candidates.push({r, c, dir: 'h'});
                 }
             }
         }
-        // Mezclar resultados para aleatoriedad
-        return matches.sort(() => Math.random() - 0.5);
+
+        // Barrido Vertical
+        // Empezamos r=1.
+        for (let r = 1; r <= this.rows - len; r++) {
+            for (let c = 1; c < this.cols; c++) {
+                if (this.canPlace(wordObj.clean, r, c, 'v')) {
+                    candidates.push({r, c, dir: 'v'});
+                }
+            }
+        }
+
+        if (candidates.length === 0) return;
+
+        // Elegir el "mejor" candidato
+        // Prioridad: Cruces con otras palabras > Aleatorio
+        // Esto aumenta la densidad
+        candidates.sort((a, b) => {
+            const intersectionsA = this.countIntersections(wordObj.clean, a.r, a.c, a.dir);
+            const intersectionsB = this.countIntersections(wordObj.clean, b.r, b.c, b.dir);
+            return intersectionsB - intersectionsA; // Mayor intersección primero
+        });
+
+        // Tomar uno de los mejores (top 3 para variedad)
+        const best = candidates.slice(0, 3);
+        const choice = best[Math.floor(Math.random() * best.length)];
+
+        if (choice) {
+            this.placeWord(wordObj, choice.r, choice.c, choice.dir);
+        }
     }
 
-    placeWord(wordObj, r, c, dir) {
-        const word = wordObj.clean;
-        const len = word.length;
-        
-        // 1. CHEQUEOS DE LÍMITES
-        if (r < 0 || c < 0) return false;
-        if (dir === 'h' && c + len > this.cols) return false;
-        if (dir === 'v' && r + len > this.rows) return false;
+    canPlace(word, r, c, dir) {
+        // Verificar espacio para la palabra
+        for (let i = 0; i < word.length; i++) {
+            let cr = dir === 'v' ? r + i : r;
+            let cc = dir === 'h' ? c + i : c;
 
-        // 2. NECESITAMOS ESPACIO PARA LA PISTA
-        // Horizontal necesita celda a la izquierda (c-1)
-        // Vertical necesita celda arriba (r-1)
-        const clueR = dir === 'v' ? r - 1 : r;
-        const clueC = dir === 'h' ? c - 1 : c;
-        
-        if (clueR < 0 || clueC < 0) return false;
-        
-        // La celda de pista debe estar vacía o ser ya una pista
+            const cell = this.grid[cr][cc];
+            
+            // Si la celda está ocupada
+            if (cell && cell.type === 'char') {
+                if (cell.char !== word[i]) return false; // Choque de letras
+            }
+            // Si la celda es reservada o pista (no debería pasar por los límites de los bucles, pero por seguridad)
+            if (cell && (cell.type === 'reserved_clue' || cell.type === 'clue')) return false;
+        }
+
+        // VERIFICACIÓN CRÍTICA: Casilla de Pista
+        // La casilla ANTERIOR a la palabra debe estar disponible para ser pista.
+        let clueR = dir === 'v' ? r - 1 : r;
+        let clueC = dir === 'h' ? c - 1 : c;
+
+        // Si la casilla de pista ya tiene una letra, NO podemos poner la palabra aquí
         if (this.grid[clueR][clueC] && this.grid[clueR][clueC].type === 'char') return false;
 
-        // 3. CHEQUEO DE COLISIÓN Y VECINDAD
-        for (let i = 0; i < len; i++) {
-            let curR = dir === 'v' ? r + i : r;
-            let curC = dir === 'h' ? c + i : c;
-            
-            const cell = this.grid[curR][curC];
-            
-            // Si hay letra, debe coincidir
-            if (cell) {
-                if (cell.type === 'char' && cell.char !== word[i]) return false;
-                if (cell.type === 'clue') return false; // No pisar pistas
-            } else {
-                // Si está vacía, verificar que no pegue con otras palabras paralelamente
-                if (dir === 'h') {
-                    if ((curR > 0 && this.grid[curR-1][curC]?.type === 'char' && !this.isCrossing(curR, curC, 'v')) || 
-                        (curR < this.rows-1 && this.grid[curR+1][curC]?.type === 'char' && !this.isCrossing(curR, curC, 'v'))) 
-                        return false;
-                } else {
-                    if ((curC > 0 && this.grid[curR][curC-1]?.type === 'char' && !this.isCrossing(curR, curC, 'h')) || 
-                        (curC < this.cols-1 && this.grid[curR][curC+1]?.type === 'char' && !this.isCrossing(curR, curC, 'h')))
-                        return false;
-                }
-            }
-        }
-
-        // 4. COLOCAR
-        // Reservar celda de pista
-        if (!this.grid[clueR][clueC]) this.grid[clueR][clueC] = { type: 'clue', hints: {} };
-        
-        // Escribir letras
-        for (let i = 0; i < len; i++) {
-            let curR = dir === 'v' ? r + i : r;
-            let curC = dir === 'h' ? c + i : c;
-            this.grid[curR][curC] = { type: 'char', char: word[i] };
-        }
-
-        this.placedWords.push({
-            word: word,
-            hint: wordObj.hint,
-            r: r,
-            c: c,
-            dir: dir
-        });
         return true;
     }
 
-    isCrossing(r, c, checkDir) {
-        return this.grid[r][c] && this.grid[r][c].type === 'char';
+    countIntersections(word, r, c, dir) {
+        let count = 0;
+        for (let i = 0; i < word.length; i++) {
+            let cr = dir === 'v' ? r + i : r;
+            let cc = dir === 'h' ? c + i : c;
+            if (this.grid[cr][cc] && this.grid[cr][cc].type === 'char') count++;
+        }
+        return count;
     }
 
-    placeClues() {
-        this.placedWords.forEach(w => {
-            const clueR = w.dir === 'v' ? w.r - 1 : w.r;
-            const clueC = w.dir === 'h' ? w.c - 1 : w.c;
-            
-            if (w.dir === 'h') this.grid[clueR][clueC].hints.right = w.hint;
-            if (w.dir === 'v') this.grid[clueR][clueC].hints.down = w.hint;
+    placeWord(wordObj, r, c, dir) {
+        // 1. Colocar Pista
+        let clueR = dir === 'v' ? r - 1 : r;
+        let clueC = dir === 'h' ? c - 1 : c;
+
+        if (!this.grid[clueR][clueC] || this.grid[clueR][clueC].type === 'reserved_clue') {
+            this.grid[clueR][clueC] = { type: 'clue', hints: {} };
+        }
+        
+        // Asignar texto de pista
+        if (dir === 'h') this.grid[clueR][clueC].hints.right = wordObj.hint;
+        else this.grid[clueR][clueC].hints.down = wordObj.hint;
+
+        // 2. Colocar Letras
+        for (let i = 0; i < wordObj.clean.length; i++) {
+            let cr = dir === 'v' ? r + i : r;
+            let cc = dir === 'h' ? c + i : c;
+            this.grid[cr][cc] = { type: 'char', char: wordObj.clean[i] };
+        }
+
+        this.placedWords.push({
+            word: wordObj.clean,
+            r, c, dir
         });
+    }
+
+    finalizeBoard() {
+        // REGLA: "No puede haber ninguna casilla sin nada"
+        // Recorremos todo el tablero. Lo que sea null o reserved_clue sin pistas,
+        // lo convertimos en un bloque decorativo o vacío.
+        
+        for(let r=0; r<this.rows; r++) {
+            for(let c=0; c<this.cols; c++) {
+                if (!this.grid[r][c] || this.grid[r][c].type === 'reserved_clue') {
+                    // Si está vacío, lo hacemos un bloque de relleno (type: 'block')
+                    // Opcionalmente podríamos hacerlo 'clue' sin texto si quisiéramos estética pura
+                    this.grid[r][c] = { type: 'block' }; 
+                }
+            }
+        }
     }
 }
 
-// --- 3. JUEGO ---
+// --- JUEGO (Lógica de Interacción) ---
 class Game {
     constructor() {
         this.rows = 10;
@@ -207,15 +211,11 @@ class Game {
         this.playerRack = [];
         this.isPlayerTurn = true;
         this.selectedTile = null;
-        this.generatedData = null; // { grid, words }
-        this.currentState = null; // Estado visual (quien puso qué)
+        this.generatedData = null;
+        this.currentState = null;
         
         this.bindEvents();
-        
-        // Desactivar botones de inicio hasta que cargue el vocabulario
         this.disableStartButtons();
-        
-        // Iniciar carga
         loadVocabulary();
     }
     
@@ -223,8 +223,6 @@ class Game {
         document.querySelectorAll('.btn-start').forEach(btn => {
             btn.classList.add('opacity-50', 'cursor-not-allowed');
             btn.disabled = true;
-            // Guardar texto original si quieres restaurarlo o añadir indicador
-            // btn.innerText += " (Cargando...)"; 
         });
     }
 
@@ -237,17 +235,15 @@ class Game {
     }
 
     start(diff) {
-        if (VOCABULARY.length === 0) return; // Protección extra
+        if (VOCABULARY.length === 0) return;
 
         this.difficulty = diff;
         document.getElementById('level-display').innerText = 
             diff === 'easy' ? 'Fácil' : diff === 'medium' ? 'Interm.' : 'Difícil';
         document.getElementById('start-modal').style.display = 'none';
         
-        // Mostrar loading
         document.getElementById('loading-msg').classList.remove('hidden');
         
-        // Timeout para que la UI respire antes de generar
         setTimeout(() => {
             this.generateNewBoard();
             document.getElementById('loading-msg').classList.add('hidden');
@@ -259,8 +255,8 @@ class Game {
         const data = gen.generate();
         
         if (!data) {
-            console.log("Reintentando generación...");
-            this.generateNewBoard();
+            console.warn("Generación difícil, reintentando...");
+            this.generateNewBoard(); // Recursión simple si falla
             return;
         }
 
@@ -283,16 +279,15 @@ class Game {
                 div.dataset.r = r;
                 div.dataset.c = c;
 
-                if (cellData && cellData.type === 'clue') {
+                if (cellData.type === 'clue') {
                     div.classList.add('clue-cell');
                     let html = '';
-                    if (cellData.hints.right) html += `<span class="arrow-right">${cellData.hints.right.substring(0,12)}</span>`;
-                    if (cellData.hints.down) html += `<span class="arrow-down">${cellData.hints.down.substring(0,12)}</span>`;
+                    if (cellData.hints?.right) html += `<span class="arrow-right">${cellData.hints.right}</span>`;
+                    if (cellData.hints?.down) html += `<span class="arrow-down">${cellData.hints.down}</span>`;
                     div.innerHTML = html;
                 } 
-                else if (cellData && cellData.type === 'char') {
+                else if (cellData.type === 'char') {
                     div.classList.add('game-cell');
-                    // Eventos click/touch
                     div.onclick = () => this.handleCellClick(r, c);
                     
                     const current = this.currentState[r][c];
@@ -300,9 +295,10 @@ class Game {
                         div.textContent = current.char;
                         div.classList.add(current.owner === 'ai' ? 'filled-ai' : 'filled-player');
                     }
-                } else {
-                    // Vacía
-                    div.style.backgroundColor = '#e2e8f0';
+                } 
+                else if (cellData.type === 'block') {
+                    // Estilo para celdas de relleno (Fila 0/Col 0 vacías o huecos internos)
+                    div.classList.add('block-cell');
                 }
                 board.appendChild(div);
             }
@@ -319,11 +315,7 @@ class Game {
             
             tile.onclick = (e) => {
                 e.stopPropagation(); 
-                if (this.selectedTile === index) {
-                    this.selectedTile = null;
-                } else {
-                    this.selectedTile = index;
-                }
+                this.selectedTile = (this.selectedTile === index) ? null : index;
                 this.renderRack();
             };
             rack.appendChild(tile);
@@ -332,6 +324,7 @@ class Game {
 
     fillPlayerRack() {
         const neededChars = [];
+        // Recopilar letras que faltan en el tablero
         for(let r=0; r<this.rows; r++){
             for(let c=0; c<this.cols; c++){
                 if (this.generatedData.grid[r][c]?.type === 'char' && !this.currentState[r][c]) {
@@ -340,8 +333,9 @@ class Game {
             }
         }
 
-        while(this.playerRack.length < 5 && neededChars.length > 0) {
-            if (Math.random() < 0.7) {
+        // Llenar mano (Estrategia mixta: útiles + aleatorias)
+        while(this.playerRack.length < 5) {
+            if (neededChars.length > 0 && Math.random() < 0.7) {
                 const char = neededChars[Math.floor(Math.random() * neededChars.length)];
                 this.playerRack.push(char);
             } else {
@@ -349,11 +343,6 @@ class Game {
                 this.playerRack.push(abc[Math.floor(Math.random() * abc.length)]);
             }
         }
-        while(this.playerRack.length < 5) {
-             const abc = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ";
-             this.playerRack.push(abc[Math.floor(Math.random() * abc.length)]);
-        }
-        
         this.renderRack();
     }
 
@@ -361,36 +350,34 @@ class Game {
         if (!this.isPlayerTurn || this.selectedTile === null) return;
         
         const cellData = this.generatedData.grid[r][c];
-        if (!cellData || cellData.type !== 'char' || this.currentState[r][c]) return;
+        if (cellData.type !== 'char' || this.currentState[r][c]) return;
 
         const char = this.playerRack[this.selectedTile];
         const correctChar = cellData.char;
-
         const cellDiv = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
 
+        // Usar ficha
         this.playerRack.splice(this.selectedTile, 1);
         this.selectedTile = null;
 
         if (char === correctChar) {
-            // ACIERTO
             this.currentState[r][c] = { char: char, owner: 'player' };
             cellDiv.textContent = char;
             cellDiv.classList.add('filled-player', 'correct-flash');
             this.updateScore('player', 1);
             this.checkWordCompletion(r, c, 'player');
         } else {
-            // FALLO
             cellDiv.classList.add('error-shake');
             setTimeout(() => cellDiv.classList.remove('error-shake'), 400);
             this.updateScore('player', -1);
         }
 
         this.renderRack();
-        
         if (this.playerRack.length === 0) this.fillPlayerRack();
     }
 
     checkWordCompletion(r, c, who) {
+        // Buscar palabras que pasan por esta celda en la lista generada
         const words = this.generatedData.words.filter(w => {
             if (w.dir === 'h') return w.r === r && c >= w.c && c < w.c + w.word.length;
             if (w.dir === 'v') return w.c === c && r >= w.r && r < w.r + w.word.length;
@@ -404,10 +391,7 @@ class Game {
                 let currC = w.dir==='h' ? w.c+i : w.c;
                 if (!this.currentState[currR][currC]) isComplete = false;
             }
-
-            if (isComplete) {
-                this.updateScore(who, w.word.length); // Bonus
-            }
+            if (isComplete) this.updateScore(who, w.word.length);
         });
     }
 
@@ -419,32 +403,32 @@ class Game {
     passTurn() {
         if (!this.isPlayerTurn) return;
         this.isPlayerTurn = false;
-        document.getElementById('turn-indicator').textContent = "Turno IA...";
-        document.getElementById('turn-indicator').className = "px-3 py-1 rounded-full bg-red-100 text-red-800 text-xs font-bold mb-1";
-        
+        this.updateTurnIndicator(false);
         setTimeout(() => ai.play(), 1000);
     }
     
-    backToPlayer() {
-        this.isPlayerTurn = true;
-        document.getElementById('turn-indicator').textContent = "Tu Turno";
-        document.getElementById('turn-indicator').className = "px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold mb-1";
-        this.fillPlayerRack();
+    updateTurnIndicator(isPlayer) {
+        const el = document.getElementById('turn-indicator');
+        if(isPlayer) {
+            el.textContent = "Tu Turno";
+            el.className = "px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold mb-1";
+        } else {
+            el.textContent = "Turno IA...";
+            el.className = "px-3 py-1 rounded-full bg-red-100 text-red-800 text-xs font-bold mb-1";
+        }
     }
     
     shuffleRack() {
         if(!this.isPlayerTurn) return;
-        for (let i = this.playerRack.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [this.playerRack[i], this.playerRack[j]] = [this.playerRack[j], this.playerRack[i]];
-        }
+        this.playerRack.sort(() => Math.random() - 0.5);
         this.renderRack();
     }
 }
 
-// --- 4. IA ---
+// --- INTELIGENCIA ARTIFICIAL ---
 class AI {
     play() {
+        // Encontrar huecos disponibles
         const available = [];
         for(let r=0; r<game.rows; r++){
             for(let c=0; c<game.cols; c++){
@@ -454,10 +438,7 @@ class AI {
             }
         }
 
-        if (available.length === 0) {
-            alert("¡Fin del juego!");
-            return;
-        }
+        if (available.length === 0) return; // Fin
 
         let moves = 1;
         if (game.difficulty === 'medium') moves = Math.random() > 0.4 ? 2 : 1;
@@ -468,28 +449,27 @@ class AI {
 
     makeMove(movesLeft, available) {
         if (movesLeft <= 0 || available.length === 0) {
-            game.backToPlayer();
+            game.isPlayerTurn = true;
+            game.updateTurnIndicator(true);
+            game.fillPlayerRack();
             return;
         }
 
-        let choice = null;
-        let index = -1;
-
-        if (game.difficulty === 'hard') {
-            index = Math.floor(Math.random() * available.length);
-        } else {
-            index = Math.floor(Math.random() * available.length);
-        }
-
-        choice = available[index];
+        // Selección de movimiento
+        let index = Math.floor(Math.random() * available.length);
+        // (Aquí se podría mejorar la lógica Hard para buscar bonus de palabra completa)
+        
+        const choice = available[index];
         available.splice(index, 1);
 
         const {r, c, char} = choice;
         game.currentState[r][c] = { char, owner: 'ai' };
         
         const cellDiv = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
-        cellDiv.textContent = char;
-        cellDiv.classList.add('filled-ai');
+        if(cellDiv) {
+            cellDiv.textContent = char;
+            cellDiv.classList.add('filled-ai');
+        }
         
         game.updateScore('ai', 1);
         game.checkWordCompletion(r, c, 'ai');
