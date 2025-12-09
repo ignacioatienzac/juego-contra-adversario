@@ -1,16 +1,16 @@
 :root {
     --grid-cols: 8;
     --grid-rows: 10;
-    /* Calculamos el tamaño de celda para que quepa en la pantalla */
-    /* Usamos vmin para asegurar que quepa tanto en ancho como en alto */
+    /* Unidades relativas para que quepa perfecto en móvil sin scroll */
     --cell-size: clamp(20px, 5.5vmin, 45px); 
     --clue-bg: #e0f2fe;
     --clue-text: #0ea5e9;
     --border-color: #334155;
     --primary-color: #3b82f6;
+    --block-color: #f1f5f9; /* Color para celdas de relleno */
 }
 
-/* Bloquear scroll y rebote en iOS */
+/* Bloquear scroll en toda la app */
 body, html {
     height: 100%;
     width: 100%;
@@ -20,28 +20,25 @@ body, html {
     background-color: #f8fafc;
 }
 
-/* Layout Principal Flexible */
 #game-container {
     display: flex;
     flex-direction: column;
-    height: 100dvh; /* Dynamic viewport height */
+    height: 100dvh; 
     width: 100%;
-    max-width: 600px; /* Evitar que se estire demasiado en desktop */
+    max-width: 600px; 
     margin: 0 auto;
 }
 
-/* 1. HEADER (Compacto) */
 header {
-    flex: 0 0 auto; /* No crecer */
+    flex: 0 0 auto;
     padding: 0.5rem;
     background: white;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     z-index: 10;
 }
 
-/* 2. TABLERO (Ocupa el espacio disponible) */
 main {
-    flex: 1 1 auto; /* Crecer para ocupar espacio */
+    flex: 1 1 auto;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -58,7 +55,6 @@ main {
     background-color: var(--border-color);
     border: 2px solid var(--border-color);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    /* Centrado absoluto visual */
     margin: auto;
 }
 
@@ -67,7 +63,6 @@ main {
     display: flex;
     justify-content: center;
     align-items: center;
-    /* Fuente relativa al tamaño de celda */
     font-size: calc(var(--cell-size) * 0.6); 
     font-weight: bold;
     position: relative;
@@ -75,23 +70,31 @@ main {
     user-select: none;
 }
 
-/* Celdas de Pista - Texto pequeño dinámico */
+/* Celdas de Pista */
 .cell.clue-cell {
     background-color: var(--clue-bg);
     color: #1e293b;
-    font-size: calc(var(--cell-size) * 0.25); /* Texto muy pequeño para que quepa */
-    font-weight: 600;
-    padding: 1px;
+    font-size: calc(var(--cell-size) * 0.22); /* Texto un poco más pequeño para que quepa bien */
+    font-weight: 700;
+    padding: 2px;
     text-align: center;
     flex-direction: column;
     line-height: 1.1;
     z-index: 5;
     overflow: hidden;
-    word-wrap: break-word;
+    word-break: break-word;
 }
 
-.arrow-right::after { content: '⮕'; color: var(--clue-text); display: block; line-height: 0.8;}
-.arrow-down::after { content: '⬇'; color: var(--clue-text); display: block; line-height: 0.8; }
+/* Celdas de Relleno (Bloques vacíos) */
+.cell.block-cell {
+    background-color: var(--block-color);
+    /* Patrón sutil para que parezca estructura */
+    background-image: radial-gradient(#cbd5e1 10%, transparent 10%);
+    background-size: 6px 6px;
+}
+
+.arrow-right::after { content: '⮕'; color: var(--clue-text); display: block; line-height: 1; margin-top: 1px;}
+.arrow-down::after { content: '⬇'; color: var(--clue-text); display: block; line-height: 1; margin-top: 1px;}
 
 .cell.game-cell { cursor: pointer; }
 .cell.game-cell.filled-ai { color: #ef4444; background-color: #fef2f2; }
@@ -103,7 +106,6 @@ main {
 @keyframes flashGreen { 0% { background: #86efac; } 100% { background: #eff6ff; } }
 @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
 
-/* 3. FOOTER / RACK (Compacto) */
 footer {
     flex: 0 0 auto;
     background: white;
@@ -146,7 +148,6 @@ footer {
 
 .tile.dragging { opacity: 0.5; }
 
-/* Modal */
 .modal-overlay {
     background-color: rgba(0,0,0,0.8);
     backdrop-filter: blur(4px);
