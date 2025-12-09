@@ -29,8 +29,9 @@ class CrosswordGenerator {
     constructor(rows, cols) {
         this.rows = rows;
         this.cols = cols;
-        this.grid = null; 
+        this.grid = null;
         this.placedWords = [];
+        this.usedWords = new Set();
     }
 
     generate() {
@@ -40,10 +41,15 @@ class CrosswordGenerator {
         for (let attempt = 0; attempt < 20; attempt++) {
             this.grid = Array(this.rows).fill().map(() => Array(this.cols).fill(null));
             this.placedWords = [];
+            this.usedWords = new Set();
 
             // 1. REGLA ESTRICTA: Fila 0 y Columna 0 SIEMPRE PISTAS
-            for(let r=0; r<this.rows; r++) this.grid[r][0] = { type: 'reserved_clue', hints: {} };
-            for(let c=0; c<this.cols; c++) this.grid[0][c] = { type: 'reserved_clue', hints: {} };
+            for(let r=0; r<this.rows; r++) {
+                if (r !== 0) this.grid[r][0] = { type: 'reserved_clue', hints: {} };
+            }
+            for(let c=0; c<this.cols; c++) {
+                if (c !== 0) this.grid[0][c] = { type: 'reserved_clue', hints: {} };
+            }
 
             // 2. Colocar palabras largas desde los bordes (Estructura principal)
             this.fillHeadersLogic();
@@ -69,7 +75,7 @@ class CrosswordGenerator {
             for (const wordObj of shuffled) {
                 if (this.canPlace(wordObj.clean, 1, c, 'v')) {
                     this.placeWord(wordObj, 1, c, 'v');
-                    break; 
+                    break;
                 }
             }
         }
@@ -80,7 +86,7 @@ class CrosswordGenerator {
             for (const wordObj of shuffled) {
                 if (this.canPlace(wordObj.clean, r, 1, 'h')) {
                     this.placeWord(wordObj, r, 1, 'h');
-                    break; 
+                    break;
                 }
             }
         }
@@ -114,6 +120,8 @@ class CrosswordGenerator {
     }
 
     canPlace(word, r, c, dir) {
+        if (this.usedWords.has(word)) return false;
+
         // 1. Verificar espacio y cruces de letras
         for (let i = 0; i < word.length; i++) {
             let cr = dir === 'v' ? r + i : r;
@@ -122,7 +130,7 @@ class CrosswordGenerator {
             if (cr >= this.rows || cc >= this.cols) return false;
 
             const cell = this.grid[cr][cc];
-            
+
             // Choque de letra
             if (cell && (cell.type === 'char' && cell.char !== word[i])) return false;
             
@@ -149,6 +157,14 @@ class CrosswordGenerator {
              if (dir === 'v' && clueCell.hints.down) return false;
         }
 
+        // 3. Verificar que el espacio después de la palabra sea válido (para no dejar palabras truncadas)
+        const endR = dir === 'v' ? r + word.length : r;
+        const endC = dir === 'h' ? c + word.length : c;
+        if (endR < this.rows && endC < this.cols) {
+            const afterCell = this.grid[endR][endC];
+            if (afterCell && afterCell.type === 'char') return false;
+        }
+
         return true;
     }
 
@@ -173,6 +189,7 @@ class CrosswordGenerator {
         }
 
         this.placedWords.push({ word: wordObj.clean, r, c, dir });
+        this.usedWords.add(wordObj.clean);
     }
 
     finalizeBoard() {
